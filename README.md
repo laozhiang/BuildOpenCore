@@ -12,7 +12,7 @@
 ### 1）修改原始OpenCore.efi（文件名不能超过12个字符）
 
 ```shell
-./change_org_OC_config.sh Debug.plist penCore.efi
+./change_org_OC_config.sh Debug.plist OpenCore.efi
 mv OpenCore.efi OpenCore-Debug.efi
 ```
 
@@ -33,7 +33,7 @@ EFI分区
     |    |     |-- ......
 ```
 
-### 2）修改老张编译版OpenCore.efi（文件名不能超过49个字符）
+### 2）修改老之昂编译版OpenCore.efi（文件名不能超过49个字符）
 
 ```shell
 ./change_OC_config.sh config-Debug.plist OpenCore.efi
