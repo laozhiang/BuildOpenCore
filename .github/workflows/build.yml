@@ -76,6 +76,14 @@ jobs:
           chmod +x opencore-laozhiang/ChangeOpenCore/*.sh
           cd opencore-laozhiang/ChangeOpenCore
           zip -qr -FS ../../Binaries/"ChangeOpenCore-${{ env.OPENCORE_VER }}.zip" ./*
+      
+      - name: Upload to Artifacts
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@v3
+        with:
+          name: DailyBuild
+          path: Binaries/*.zip
+      
       - name: Upload to Release
         if: github.event_name == 'release'
         uses: svenstaro/upload-release-action@e74ff71f7d8a4c4745b560a485cc5fdb9b5b999d
