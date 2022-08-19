@@ -1,0 +1,86 @@
+name: Build OpenCore
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+env:
+  PROJECT_TYPE: UEFI
+  FORCE_INSTALL: 1
+  HAS_OPENSSL_BUILD: 1
+  HAS_OPENSSL_W32BUILD: 0
+  WERROR: 1
+  
+
+jobs:
+  build-opencore:
+    name: Build OpenCore
+    runs-on: macos-latest
+    env:
+      JOB_TYPE: BUILD
+    steps:
+      - name: get version
+        if: github.event_name == 'release'
+        run: |
+          OPENCORE_VER=$(echo ${{ github.ref }} | sed "s/.*\/[^-]*-//g")
+          echo "OPENCORE_VER=$OPENCORE_VER" >> $GITHUB_ENV
+          
+      - name: Clone OpenCore Code
+        uses: actions/checkout@v3
+        with:
+          repository: acidanthera/OpenCorePkg
+          ref: ${{ env.OPENCORE_VER }}
+     
+      - name: change OpenCore
+        run: sed -i .bak "s/L\"config.plist\"/L\"config.plist\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\\\\0\"/g" Include/Acidanthera/Library/OcMainLib.h      
+      
+      - name: check change OpenCore
+        run: |
+          cat Include/Acidanthera/Library/OcMainLib.h
+          cat build_oc.tool
+      - name: Add Linux Toolchain
+        run: brew tap FiloSottile/homebrew-musl-cross
+
+      - name: Install Linux Toolchain
+        run: brew install musl-cross
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+          HOMEBREW_NO_AUTO_UPDATE: 1
+
+      - name: Install Dependencies
+        run: brew install openssl mingw-w64
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+          HOMEBREW_NO_AUTO_UPDATE: 1
+
+      - name: CI Bootstrap
+        run: |
+          src=$(/usr/bin/curl -Lfs https://raw.githubusercontent.com/acidanthera/ocbuild/master/ci-bootstrap.sh) && eval "$src" || exit 1
+      - run: ./build_duet.tool
+      - run: ./build_oc.tool
+      
+      - name: Clone Scropt Code
+        uses: actions/checkout@v3
+        with:
+          path: opencore-laozhiang
+
+      - name: Convert Markdown to HTML
+        uses: natescherer/markdown-to-html-with-github-style-action@v1.1.0
+        with:
+          path: opencore-laozhiang/README.md
+          outputpath: opencore-laozhiang/ChangeOpenCore
+          
+      - name: package
+        run: |
+          cp opencore-laozhiang/*.sh opencore-laozhiang/ChangeOpenCore/
+          chmod +x opencore-laozhiang/ChangeOpenCore/*.sh
+          cd opencore-laozhiang/ChangeOpenCore
+          zip -qr -FS ../../Binaries/"ChangeOpenCore-${{ env.OPENCORE_VER }}.zip" ./*
+      - name: Upload to Release
+        if: github.event_name == 'release'
+        uses: svenstaro/upload-release-action@e74ff71f7d8a4c4745b560a485cc5fdb9b5b999d
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: Binaries/*.zip
+          tag: ${{ github.ref }}
+          file_glob: true
